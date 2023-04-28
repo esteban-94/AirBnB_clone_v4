@@ -20,7 +20,7 @@ $('document').ready(function () {
       
     status();
 
-    setInterval(status, 0.2 * 60 * 1000);
+    setInterval(status, 20000);
     // setInterval(console.clear, 0.3 * 60 * 1000);
 
     const loadAllPlaces = () => {
@@ -100,7 +100,10 @@ $('document').ready(function () {
 function appendPlaces(data) {
   $('SECTION.places').empty();
 
-  const promises = data.map(async place => {
+  const firstChunk = data.slice(0, 20);
+  const remainingData = data.slice(20);
+
+  const renderPlace = async (place) => {
     // creating the requests
     const amenities_place = {
       url: `http://localhost:5001/api/v1/places/${place.id}/amenities`,
@@ -112,6 +115,12 @@ function appendPlaces(data) {
       method: 'GET',
       timeout: 0,
     };
+    const user_place = {
+      url: `http://localhost:5001/api/v1/users/${place.user_id}`,
+      method: 'GET',
+      timeout: 0,
+    };
+
 
     // making the requests
     const amenitiesPromise = $.ajax(amenities_place)
@@ -132,8 +141,17 @@ function appendPlaces(data) {
         place.reviews = [];
       });
 
+    const userPromise = $.ajax(user_place)
+      .then(response => {
+        place.user = response;
+      })
+      .catch(error => {
+        console.log(error);
+        place.user = undefined;
+      });
+
     // creating the render for the place
-    await Promise.all([amenitiesPromise, reviewsPromise]);
+    await Promise.all([amenitiesPromise, reviewsPromise, userPromise]);
     let html = '';
     html += `<ARTICLE>
               <DIV class="title_box">
@@ -154,8 +172,7 @@ function appendPlaces(data) {
                   </DIV>
                 </DIV>
                 <DIV class="description">
-                <DIV><B>Owner: </B> ${place.user.first_name} ${place.user.last_name}</DIV>
-                <DIV><B>City: </B> ${place.city.name}</DIV>
+                <p><b>Owner</b>: ${place.user.first_name} ${place.user.last_name} </br>
                 </BR>
                   ${place.description}
                 </DIV>`;
@@ -164,7 +181,7 @@ function appendPlaces(data) {
       html += `<DIV class="amenities_list">
                   <h2>Amenities</h2>
                   <UL>
-                    ${place.amenities.map(amenity => `<LI>${amenity.name}</LI>`).join('')}
+                    ${place.amenities.map((amenity) => `<LI>${amenity.name}</LI>`).join('')}
                   </UL>
                 </DIV>`;
     }
@@ -173,24 +190,28 @@ function appendPlaces(data) {
       html += `<DIV class="reviews_list">
                   <h2>Reviews</h2>
                   <UL>
-                    ${place.reviews.map(review => `<LI>${review.text}</LI>`).join('')}
+                    ${place.reviews.map((review) => `<LI>${review.text}</LI>`).join('')}
                   </UL>
                 </DIV>`;
     }
     html += `</ARTICLE>`;
     return html;
-  });
+  };
 
-  // when all the places are render
-  Promise.all(promises).then(results => {
-    const validResults = results.filter(result => result !== '');
-    if (validResults.length > 0) {
-      $('SECTION.places').append(validResults.join(''));
-    } else {
-      $('SECTION.places').html('<p>No places found</p>');
-    }
-  });
+  // render first chunk
+  Promise.all(firstChunk.map(place => renderPlace(place)))
+    .then(results => {
+      const validResults = results.filter(result => result !== '');
+      if (validResults.length > 0) {
+        $('SECTION.places').append(results.join(''));
+    }})
+
+
+  Promise.all(remainingData.map(place => renderPlace(place)))
+    .then(results => {
+      const validResults = results.filter(result => result !== '');
+      if (validResults.length > 0) {
+        $('SECTION.places').append(results.join(''));
+    }})
+
 }
-
-
-

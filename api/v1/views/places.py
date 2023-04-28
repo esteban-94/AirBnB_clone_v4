@@ -142,14 +142,7 @@ def places_search():
         places = storage.all(Place).values()
         list_places = []
         for place in places:
-            user = storage.get(User, place.user_id)
-            city = storage.get(City, place.city_id)
-            place_dict = place.to_dict()
-            place_dict['user'] = user.to_dict() if user else None #
-            place_dict['city'] = city.to_dict() if city else None
-            place_dict.pop('user_id')
-            place_dict.pop('city_id')
-            list_places.append(place_dict)
+            list_places.append(place.to_dict())
         return jsonify(list_places)
 
     list_places = []
@@ -179,20 +172,9 @@ def places_search():
                                for am in amenities_obj])]
 
     places = []
-    for place in list_places:
-        user = storage.get(User, place.user_id) #
-        user = user.to_dict()
-        user.pop('__class__', None)
-        city = storage.get(City, place.city_id) #
-        city = city.to_dict()
-        city.pop('places', None)
-        city.pop('__class__', None)
-        place_dict = place.to_dict() #
-        place_dict['user'] = user
-        place_dict['city'] = city
-        place_dict.pop('user_id')
-        place_dict.pop('city_id')
-        d = place_dict
+    for p in list_places:
+        d = p.to_dict()
+        d.pop('amenities', None)
         places.append(d)
 
     return jsonify(places)
